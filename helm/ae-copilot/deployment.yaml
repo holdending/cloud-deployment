@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ae-copilot-properties
+  namespace: app
+data:
+  app.conf: |
+    gcs.credentials = {"ProjectID":"datalake-landing-eng-us-prod"}
+    scan.interval.time.seconds = 300
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ae-copilot
+  namespace: app
+  labels:
+    app: ae-copilot
+spec:
+  selector:
+    matchLabels:
+      app: ae-copilot
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ae-copilot
+    spec:
+      # serviceAccount: select-core-datasource-api
+      # serviceAccountName: select-core-datasource-api
+      securityContext:
+        runAsUser: 0
+      containers:
+        - name: ae-copilot
+          # image: registry.cn-shanghai.aliyuncs.com/liveramp/ae-copilot:{{ .Values.env.APP_VERSION }}
+          image: registry.cn-shanghai.aliyuncs.com/liveramp/ae-copilot:APP_VERSION
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          # livenessProbe:
+          #   failureThreshold: 5
+          #   httpGet:
+          #     path: /v1/heartbeat
+          #     port: 8080
+          #   initialDelaySeconds: 60
+          #   periodSeconds: 60
+          # readinessProbe:
+          #   failureThreshold: 5
+          #   httpGet:
+          #     path: /v1/heartbeat
+          #     port: 8080
+          #   initialDelaySeconds: 60
+          #   periodSeconds: 20
+          volumeMounts:
+            - mountPath: /opt/ae-copilot/conf/app.conf
+              name: config-volume
+              subPath: app.conf
+            # - mountPath: /mnt/ae-copilot
+            #   name: ae-copilot-volume
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        # - name: ae-copilot-volume
+        #   persistentVolumeClaim:
+        #     claimName: bitmap-nfs-local-1-claim
+        - configMap:
+            name: ae-copilot-properties
+          name: config-volume
